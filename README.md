@@ -186,6 +186,91 @@ Browser ──► /api/videoselz (this repo) ──► Videoselz on Gadget (VIDE
 | `server/arcade.js` | Arcade API client (auth, retries, idempotent `requestId`s) |
 | `server/handlers.js` | Access code check and the operations behind both functions |
 
+## Architecture
+
+### This demo
+
+```mermaid
+sequenceDiagram
+    participant B as Browser (this site)
+    participant F as /api functions (this repo)
+    participant A as Arcade API
+    participant V as Videoselz (Gadget)
+    participant S as Shopify store
+    participant R as Video pipeline
+
+    B->>F: createPattern / createProduct (access code)
+    F->>A: patterns/create · products/create (ARCADE_API_KEY)
+    A-->>F: jobId
+    loop every 3 s
+        B->>F: job
+        F->>A: jobs/get
+    end
+    B->>F: publish (title, price)
+    F->>A: products/get
+    F->>V: import product data (VIDEOSELZ_KEY)
+    V->>S: productCreate (photos, description, care notes, price)
+    V->>R: 3 story videos + banner loop
+    R-->>V: signed callback when each video is ready
+    V->>S: add the video to the product page
+    loop every 8 s
+        B->>F: videos
+        F->>V: videos
+    end
+```
+
+The Arcade key stays in this repo's server functions. The Shopify token and the
+video pipeline stay in Videoselz. The browser only talks to `/api/*`.
+
+### In production: Arcade and Videoselz installed on the same store
+
+Here a merchant has both apps installed on their Shopify store. Each app
+already holds its own Shopify access token for that store, so neither app
+needs the other's credentials. The only thing that has to cross between them is
+**"this product is ready"**.
+
+```mermaid
+flowchart LR
+    M[Merchant in Arcade Studio] -->|Publish to Shopify| A[Arcade app]
+    A -->|productCreate with its own token| S[(Shopify store)]
+    A -->|webhook: product.published<br/>shop, productId, HMAC| V[Videoselz]
+    S -.->|or: Shopify products/create webhook| V
+    V -->|reads product, makes videos<br/>with its own token| S
+```
+
+Two ways to get that signal, both without sharing tokens:
+
+1. **Arcade → Videoselz webhook (recommended).** When the merchant publishes
+   with "Product videos" switched on, Arcade calls a Videoselz URL. The URL
+   takes `{ event: "product.published", shop: "store.myshopify.com",
+   shopifyProductId, arcadeProductId }`, signed with HMAC-SHA256 over a shared
+   secret. Videoselz:
+   - checks the signature;
+   - looks up the shop among its installs, so a store without Videoselz is
+     ignored;
+   - makes the videos with its own offline token.
+
+   This is how the Videoselz video pipeline already reports back: a signed
+   callback with a timestamp, retried until it is accepted.
+2. **Shopify webhook only, no Arcade change.** Videoselz already subscribes to
+   `products/create` for its installs. It can make videos automatically for
+   new products from Arcade, which it recognises by vendor, tag or metafield.
+   This needs no work from Arcade, but the merchant can't turn videos on or
+   off per product in Arcade Studio.
+
+Either way the merchant sees the videos in the Videoselz app and on the product
+page, and nothing changes in how either app authenticates with Shopify.
+
+### Status
+
+| Piece | State |
+| --- | --- |
+| Arcade API: patterns, refine, categories, products, jobs | Working |
+| Product on Shopify with Arcade photos, description, care notes and price | Working |
+| 3 story videos + banner loop on the product page | Working |
+| This site: Arcade calls in `/api`, Videoselz import | Working locally; set the env vars on Vercel to go live |
+| Arcade → Videoselz webhook | Designed (above), needs an endpoint on Arcade's side |
+
 ## Run it locally
 
 ```bash
