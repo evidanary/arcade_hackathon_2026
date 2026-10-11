@@ -12,6 +12,56 @@ functions that call the Arcade API, poll its jobs and keep the API key off the
 browser. Videoselz (a Shopify app built on Gadget) only takes the finished
 product, lists it on Shopify and makes the videos.
 
+## Try it
+
+1. Open the live site and enter the access code at the top (email
+   yash@videoselz.com for one), then click **Unlock**.
+2. **Describe your design** and click **Generate pattern**. Arcade draws it in
+   about a minute. Tweak it if you like.
+3. **Choose the product**: pick a type on the left (for example Decorative
+   Pillows), set its options on the right and click **Create**. Arcade builds
+   the product and its photos.
+4. **Sell it with videos**: set a title and price and click **Send to
+   Videoselz**. The 4 videos (3 stories and a banner loop) appear on the page
+   and fill in as they finish. That takes several minutes.
+
+## See it in Shopify
+
+Clicking **Send to Videoselz** creates a real product on the Videoselz demo
+store (`joey-selz.myshopify.com`). Here is where to find each piece.
+
+### On this site (anyone)
+
+The 4 video tiles under step 3 play the finished videos. **Open ↗** opens a
+video on its own.
+
+### In the Shopify admin (store staff)
+
+You need a staff login on the demo store; ask yash@videoselz.com for one.
+
+| What | Where |
+| --- | --- |
+| The product | **Products** → the title you chose. It is tagged `arcade` and `ai-video`, its vendor is the Arcade maker, and it has Arcade's photos, description, care instructions and your price. |
+| The videos | **Apps → Videoselz** (the dev build is listed as *realityshop-test*) **→ Library**: the 3 story videos and the banner loop, added to the product's video page automatically. |
+| The Arcade product in Videoselz | **Apps → Videoselz → Design with Arcade → Your Arcade products**. |
+
+### On the storefront (shoppers)
+
+1. **Put the product on the Online Store (one click, once per product).**
+   Videoselz creates the product as Active, but it doesn't add it to sales
+   channels: that would need Shopify's `write_publications` permission. In the
+   admin, open the product, find **Publishing** (Sales channels) → **Manage**,
+   tick **Online Store** and save.
+2. **Open the product page.** On the product, click **View** (the eye icon) or
+   go to `https://joey-selz.myshopify.com/products/<product-handle>`. The
+   Videoselz widget shows the story videos on the page.
+3. **The demo store is password protected.** Find the password under
+   **Online Store → Preferences → Password protection**, or ask
+   yash@videoselz.com.
+4. **Banner loop (optional).** In Videoselz, open the loop and click **Use in
+   banner**. Then in **Online Store → Themes → Customize**, add the
+   **Videoselz Banner** section and pick that video.
+
 ## How it uses the Arcade API
 
 | Step on the page | Arcade API call |
@@ -147,7 +197,7 @@ Fill in `.env` (server-only, never sent to the browser or committed):
 | `ARCADE_CONTACT` | Contact email for the User-Agent Arcade requires |
 | `ACCESS_CODE` | Code visitors type before anything that costs money (optional) |
 | `VIDEOSELZ_URL` | The Videoselz import endpoint |
-| `VIDEOSELZ_KEY` | Shared key for that endpoint. **Email yash@videoselz.com for it.** |
+| `VIDEOSELZ_KEY` | Shared key for that endpoint. **Email yash@realityshop.com for it.** |
 
 `npm run dev` serves the page and the `/api` functions together.
 
