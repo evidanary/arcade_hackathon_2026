@@ -14,8 +14,8 @@ product, lists it on Shopify and makes the videos.
 
 ## Try it
 
-1. Open the live site and enter the access code at the top (email
-   yash@videoselz.com for one), then click **Unlock**.
+1. Open the live site, enter the access code **`12345`** at the top and click
+   **Unlock**.
 2. **Describe your design** and click **Generate pattern**. Arcade draws it in
    about a minute. Tweak it if you like.
 3. **Choose the product**: pick a type on the left (for example Decorative
@@ -215,7 +215,7 @@ yash@videoselz.com.
 
 **"That access code isn't right."**
 Generating patterns, products and videos costs money, so those steps need the
-code from the Videoselz team.
+access code. For this demo it is **`12345`**.
 
 **"Videoselz has made today's demo products."**
 There is a daily limit on products sent to Videoselz. Try again tomorrow, or
