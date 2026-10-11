@@ -7,8 +7,10 @@ Describe a design and get a real product with its videos.
 2. **Videoselz** puts the product on a Shopify store. It then makes 3 short
    story videos and a banner loop, and adds them to the product page.
 
-This repo is the website. It is a React app with no backend of its own. Every
-request goes to one Videoselz endpoint, and Videoselz holds the Arcade API key.
+This repo is the whole Arcade side: a React page plus two small server
+functions that call the Arcade API, poll its jobs and keep the API key off the
+browser. Videoselz (a Shopify app built on Gadget) only takes the finished
+product, lists it on Shopify and makes the videos.
 
 ## How it uses the Arcade API
 
@@ -22,18 +24,27 @@ request goes to one Videoselz endpoint, and Videoselz holds the Arcade API key.
 | Create the product | `products/create` |
 | Send to Videoselz | `products/get` (title, photos, description, care instructions, maker, unit price) |
 
-Open **Behind the scenes** at the bottom of the page to see each call as it
-happens.
+All of these run in [`server/arcade.js`](server/arcade.js). Open **Behind the
+scenes** on the page to see each call as it happens.
 
 ## Flow
 
 ```
-Browser ── POST /arcade-public/studio ──► Videoselz (Gadget) ──► Arcade API
-                                              │
-                                              ├─ creates the Shopify product
-                                              └─ makes 3 story videos + a banner loop
-Browser ◄── polls { op: "videos" } ───────────┘
+Browser ──► /api/arcade  (this repo, holds ARCADE_API_KEY) ──► Arcade API
+              patterns · categories · products · jobs/get polling
+
+Browser ──► /api/videoselz (this repo) ──► Videoselz on Gadget (VIDEOSELZ_KEY)
+              publish: product data from Arcade   ├─ creates the Shopify product
+              videos:  polled every 8 s           └─ makes 3 story videos + a banner loop
 ```
+
+| Path | What it does |
+| --- | --- |
+| `src/` | The page (React + Vite) |
+| `api/arcade.js` | Server function: Arcade calls and job polling |
+| `api/videoselz.js` | Server function: sends the finished product to Videoselz, reads its videos |
+| `server/arcade.js` | Arcade API client (auth, retries, idempotent `requestId`s) |
+| `server/handlers.js` | Access code check and the operations behind both functions |
 
 ## Architecture
 
@@ -42,31 +53,34 @@ Browser ◄── polls { op: "videos" } ───────────┘
 ```mermaid
 sequenceDiagram
     participant B as Browser (this site)
-    participant V as Videoselz (Gadget)
+    participant F as /api functions (this repo)
     participant A as Arcade API
+    participant V as Videoselz (Gadget)
     participant S as Shopify store
     participant R as Video pipeline
 
-    B->>V: createPattern / createProduct (access code)
-    V->>A: patterns/create · products/create
-    A-->>V: jobId
+    B->>F: createPattern / createProduct (access code)
+    F->>A: patterns/create · products/create (ARCADE_API_KEY)
+    A-->>F: jobId
     loop every 3 s
-        B->>V: job
-        V->>A: jobs/get
+        B->>F: job
+        F->>A: jobs/get
     end
-    B->>V: publish (title, price)
-    V->>A: products/get
+    B->>F: publish (title, price)
+    F->>A: products/get
+    F->>V: import product data (VIDEOSELZ_KEY)
     V->>S: productCreate (photos, description, care notes, price)
     V->>R: 3 story videos + banner loop
     R-->>V: signed callback when each video is ready
     V->>S: add the video to the product page
     loop every 8 s
-        B->>V: videos
+        B->>F: videos
+        F->>V: videos
     end
 ```
 
-The Arcade key, the Shopify token and the video pipeline all stay on the
-Videoselz side. The site only knows one public URL.
+The Arcade key stays in this repo's server functions. The Shopify token and the
+video pipeline stay in Videoselz. The browser only talks to `/api/*`.
 
 ### In production: Arcade and Videoselz installed on the same store
 
@@ -114,7 +128,7 @@ page, and nothing changes in how either app authenticates with Shopify.
 | Arcade API: patterns, refine, categories, products, jobs | Working |
 | Product on Shopify with Arcade photos, description, care notes and price | Working |
 | 3 story videos + banner loop on the product page | Working |
-| This public site | Working (needs an access code) |
+| This site: Arcade calls in `/api`, Videoselz import | Working locally; set the env vars on Vercel to go live |
 | Arcade → Videoselz webhook | Designed (above), needs an endpoint on Arcade's side |
 
 ## Run it locally
@@ -125,19 +139,23 @@ cp .env.example .env
 npm run dev
 ```
 
-`VITE_VIDEOSELZ_URL` in `.env` is the Videoselz endpoint. It is a public URL,
-not a secret. Steps that cost money (patterns, products, videos) may ask for
-an access code. **Email yash@videoselz.com to get one.**
+Fill in `.env` (server-only, never sent to the browser or committed):
+
+| Variable | What it is |
+| --- | --- |
+| `ARCADE_API_KEY` | Your Arcade API key (`arcade_sk_live_…`) |
+| `ARCADE_CONTACT` | Contact email for the User-Agent Arcade requires |
+| `ACCESS_CODE` | Code visitors type before anything that costs money (optional) |
+| `VIDEOSELZ_URL` | The Videoselz import endpoint |
+| `VIDEOSELZ_KEY` | Shared key for that endpoint. **Email yash@videoselz.com for it.** |
+
+`npm run dev` serves the page and the `/api` functions together.
 
 ## Deploy
 
-The site is static, so it runs on any static host.
-
-- **Vercel**: import this repo. The framework preset is Vite, the build command
-  is `npm run build` and the output directory is `dist`. Add
-  `VITE_VIDEOSELZ_URL` as an environment variable.
-- **Render**: create a Static Site with the same build command and publish
-  directory `dist`.
+**Vercel** (recommended): import this repo. It detects Vite and deploys
+`api/*.js` as serverless functions. Add the five variables above under
+**Settings → Environment Variables**, then redeploy.
 
 ## FAQ
 
@@ -161,5 +179,6 @@ Each video is planned, generated, narrated and rendered. Expect several minutes.
 The tiles update on their own.
 
 **Where are the keys?**
-Not in this repo. The Arcade API key lives only on the Videoselz server. The
-site has no secrets; `.env` only holds the public endpoint URL.
+In environment variables on the server: `.env` locally, which is gitignored,
+and the Vercel project settings in production. The browser only ever talks to
+`/api/*`.

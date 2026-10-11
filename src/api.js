@@ -1,7 +1,9 @@
-// Every request goes to one Videoselz endpoint. Videoselz holds the Arcade
-// key and calls the Arcade API; this site never sees a key.
-const ENDPOINT =
-  import.meta.env.VITE_VIDEOSELZ_URL || "https://videoselz--development.gadget.app/arcade-public/studio";
+// The page talks only to this site's own server functions (api/*.js):
+// /api/arcade calls the Arcade API with the key, /api/videoselz hands the
+// finished product to Videoselz for Shopify and the videos. No key ever
+// reaches the browser.
+const VIDEOSELZ_OPS = new Set(["publish", "videos"]);
+const endpoint = (op) => (VIDEOSELZ_OPS.has(op) ? "/api/videoselz" : "/api/arcade");
 
 export const CONTACT = "yash@videoselz.com";
 
@@ -14,7 +16,7 @@ export const ARCADE_CALL = {
   job: "jobs/get",
   createProduct: "products/create",
   product: "products/get",
-  publish: "products/get → Videoselz",
+  publish: "products/get",
   videos: "Videoselz videos",
 };
 
@@ -24,21 +26,18 @@ export const onCall = (fn) => {
   return () => listeners.delete(fn);
 };
 
-/**
- * Runs one step. Sent as text/plain so the browser makes a simple request
- * (no CORS preflight). Throws an Error with a readable message on failure.
- */
+/** Runs one step. Throws an Error with a readable message on failure. */
 export async function studio(op, input = {}, code) {
   const started = performance.now();
   let res;
   try {
-    res = await fetch(ENDPOINT, {
+    res = await fetch(endpoint(op), {
       method: "POST",
-      headers: { "Content-Type": "text/plain" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ op, input, code }),
     });
   } catch {
-    throw new Error(`Can't reach Videoselz right now. Reload in a few seconds, or email ${CONTACT} if it keeps happening.`);
+    throw new Error(`Can't reach the server right now. Reload in a few seconds, or email ${CONTACT} if it keeps happening.`);
   }
   let body = null;
   try {

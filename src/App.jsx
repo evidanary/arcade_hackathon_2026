@@ -897,7 +897,6 @@ export default function App() {
       </header>
 
       {down && <Alert>{down}</Alert>}
-      {status?.mock && <Alert tone="info">Preview mode: Arcade isn't connected on the Videoselz side, so this shows sample data.</Alert>}
 
       <Stepper stage={stage} />
 
